@@ -7,6 +7,8 @@
 #include "G4Step.hh"
 #include "G4Track.hh"
 #include "G4RunManager.hh"
+#include "G4Run.hh"
+#include "G4Event.hh"
 #include "G4SystemOfUnits.hh"
 #include "G4CMPUtils.hh"
 #include "G4PhononLong.hh"

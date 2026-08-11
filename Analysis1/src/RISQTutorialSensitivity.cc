@@ -21,7 +21,7 @@
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 
 RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
-  G4CMPElectrodeSensitivity(name), primaryFileName(""), hitFileName("") {
+  G4CMPElectrodeSensitivity(name), hitFileName(""), primaryFileName("") {
   SetHitOutputFile(RISQTutorialConfigManager::GetHitOutput());
   SetPrimaryOutputFile(RISQTutorialConfigManager::GetPrimaryOutput());
 }
