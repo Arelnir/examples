@@ -12,23 +12,44 @@
 #include "G4PhononLong.hh"
 #include "G4PhononTransFast.hh"
 #include "G4PhononTransSlow.hh"
+#include <fstream>
+#include <iostream>
+#include <mutex>
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+namespace {
+    constexpr double twoDelta = 2 * 173.715e-6 * CLHEP::eV; // Al 2Δ
+    std::ofstream lowEOutput;
+    std::mutex lowEMutex;
+    bool lowEFileInitialized = false;
+}
 
 RISQTutorialSteppingAction::RISQTutorialSteppingAction() {;}
 
 RISQTutorialSteppingAction::~RISQTutorialSteppingAction() {;}
 
 void RISQTutorialSteppingAction::UserSteppingAction(const G4Step* step) {
-    // 只对声子进行处理
     G4Track* track = step->GetTrack();
     if (!G4CMP::IsPhonon(track->GetDefinition())) return;
 
-    // 铝的两倍能隙
-    constexpr G4double twoDelta = 2 * 173.715e-6 * CLHEP::eV;
+    G4double energy = track->GetKineticEnergy();
+    if (energy < twoDelta && track->GetTrackStatus() == fAlive) {
+        // ---------- 记录低能声子 ----------
+        std::lock_guard<std::mutex> lock(lowEMutex);
+        if (!lowEFileInitialized) {
+            lowEOutput.open("phonon_lowenergy.txt", std::ios_base::app);
+            lowEFileInitialized = true;
+            if (lowEOutput.good()) {
+                lowEOutput << "Run ID,Event ID,Track ID,Energy [eV]" << std::endl;
+            }
+        }
+        if (lowEOutput.good()) {
+            lowEOutput << G4RunManager::GetRunManager()->GetCurrentRun()->GetRunID() << ','
+                       << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID() << ','
+                       << track->GetTrackID() << ','
+                       << energy / CLHEP::eV << '\n';
+        }
 
-    // 如果声子动能低于 2Δ，且仍处于活跃状态，则杀死它
-    if (track->GetKineticEnergy() < twoDelta && track->GetTrackStatus() == fAlive) {
+        // ---------- 杀死声子 ----------
         track->SetTrackStatus(fStopAndKill);
     }
 }

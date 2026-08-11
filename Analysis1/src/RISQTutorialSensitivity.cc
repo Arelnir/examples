@@ -18,8 +18,6 @@
 #include <fstream>
 #include <iostream>
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-
 RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   G4CMPElectrodeSensitivity(name), primaryFileName(""), hitFileName("") {
   SetHitOutputFile(RISQTutorialConfigManager::GetHitOutput());
@@ -28,19 +26,8 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
 
 RISQTutorialSensitivity::~RISQTutorialSensitivity() {
   if (primaryOutput.is_open()) primaryOutput.close();
-  if (!primaryOutput.good()) {
-    G4cerr << "Error closing primary output file, " << primaryFileName << ".\n"
-           << "Expect bad things like loss of data.";
-  }
-
   if (hitOutput.is_open()) hitOutput.close();
-  if (!hitOutput.good()) {
-    G4cerr << "Error closing hit output file, " << hitFileName << ".\n"
-           << "Expect bad things like loss of data.";
-  }
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 
 void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
   G4int HCID = G4SDManager::GetSDMpointer()->GetCollectionID(hitsCollection);
@@ -49,7 +36,7 @@ void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
 
   G4RunManager* runMan = G4RunManager::GetRunManager();
 
-  // ---------- 写入初始声子信息 ----------
+  // --- primary output ---
   const G4Event* currentEvent = runMan->GetCurrentEvent();
   if (primaryOutput.good() && currentEvent->GetNumberOfPrimaryVertex() > 0) {
     G4PrimaryVertex* primaryVertex = currentEvent->GetPrimaryVertex(0);
@@ -64,41 +51,28 @@ void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
                   << primaryVertex->GetT0()/CLHEP::ns << '\n';
   }
 
-  // ---------- 写入电极击中数据（带坐标过滤） ----------
-  const bool enableCoordFilter = true;   // 设置为 false 可关闭过滤
+  // --- hit output (simplified) ---
+  const bool enableCoordFilter = true;
   const double xLeftMin  = -3.775, xLeftMax  = -3.325;
   const double xRightMin =  3.325, xRightMax =  3.775;
   const double yMin = -0.52, yMax = 0.077665;
 
   if (hitOutput.good()) {
     for (G4CMPElectrodeHit* hit : *hitVec) {
-      double x = hit->GetFinalPosition().x();   // 单位 mm
+      double x = hit->GetFinalPosition().x();
       double y = hit->GetFinalPosition().y();
 
       bool inLeft  = (x >= xLeftMin  && x <= xLeftMax  && y >= yMin && y <= yMax);
       bool inRight = (x >= xRightMin && x <= xRightMax && y >= yMin && y <= yMax);
       if (enableCoordFilter && !inLeft && !inRight) continue;
 
-      hitOutput << runMan->GetCurrentRun()->GetRunID() << ' '
-                << runMan->GetCurrentEvent()->GetEventID() << ' '
-                << hit->GetTrackID() << ' '
-                << hit->GetParticleName() << ' '
-                << hit->GetStartEnergy()/CLHEP::eV << ' '
-                << hit->GetStartPosition().getX()/CLHEP::mm << ' '
-                << hit->GetStartPosition().getY()/CLHEP::mm << ' '
-                << hit->GetStartPosition().getZ()/CLHEP::mm << ' '
-                << hit->GetStartTime()/CLHEP::ns << ' '
-                << hit->GetEnergyDeposit()/CLHEP::eV << ' '
-                << hit->GetWeight() << ' '
-                << hit->GetFinalPosition().getX()/CLHEP::mm << ' '
-                << hit->GetFinalPosition().getY()/CLHEP::mm << ' '
-                << hit->GetFinalPosition().getZ()/CLHEP::mm << ' '
-                << hit->GetFinalTime()/CLHEP::ns << '\n';
+      hitOutput << runMan->GetCurrentRun()->GetRunID() << ','
+                << runMan->GetCurrentEvent()->GetEventID() << ','
+                << hit->GetTrackID() << ','
+                << hit->GetEnergyDeposit()/CLHEP::eV << '\n';
     }
   }
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 
 void RISQTutorialSensitivity::SetHitOutputFile(const G4String &fn) {
   if (hitFileName != fn) {
@@ -112,10 +86,7 @@ void RISQTutorialSensitivity::SetHitOutputFile(const G4String &fn) {
                   FatalException, msg);
       hitOutput.close();
     } else {
-      hitOutput << "Run ID,Event ID,Track ID,Particle Name,Start Energy [eV],"
-                << "Start X [m],Start Y [m],Start Z [m],Start Time [ns],"
-                << "Energy Deposited [eV],Track Weight,End X [m],End Y [m],End Z [m],"
-                << "Final Time [ns]\n";
+      hitOutput << "Run ID,Event ID,Track ID,Energy Deposited [eV]\n";
     }
   }
 }
@@ -137,8 +108,6 @@ void RISQTutorialSensitivity::SetPrimaryOutputFile(const G4String &fn) {
     }
   }
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 
 G4bool RISQTutorialSensitivity::IsHit(const G4Step* step,
                                       const G4TouchableHistory*) const {
