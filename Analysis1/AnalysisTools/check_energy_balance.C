@@ -111,7 +111,7 @@ void check_energy_balance() {
     // ========== 创建初始声子能量 XY 分布图 ==========
     TH2F *h_prim_xy = new TH2F("h_prim_xy",
                                 "Primary Phonon Energy (XY);X [mm];Y [mm];Energy [eV]",
-                                100, -5, 5, 100, -2, 2);   // 范围覆盖你的硅片
+                                100, -5, 5, 100, -1.667, 1.667);   // 范围覆盖你的硅片
     for (size_t i = 0; i < primX.size(); ++i) {
         h_prim_xy->Fill(primX[i], primY[i], primE[i]);
     }
