@@ -20,5 +20,5 @@
 
 # Select energies
 /gps/ene/type Mono
-/gps/energy 0.0005 eV
-/run/beamOn 20
+/gps/energy 0.005 eV
+/run/beamOn 2000
