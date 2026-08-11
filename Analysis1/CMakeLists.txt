@@ -48,12 +48,6 @@ set(RISQTutorial_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialDetectorConstruction.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialPrimaryGeneratorAction.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialSensitivity.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialQubitHousing.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialPad.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialTransmissionLine.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialResonatorAssembly.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialStraightFluxLine.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/RISQTutorialCornerFluxLine.cc
     )
     
 if(USE_GEANT4_STATIC_LIBS)
