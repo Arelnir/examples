@@ -8,6 +8,7 @@
 
 #include "G4CMPElectrodeSensitivity.hh"
 #include <fstream>
+#include <mutex>
 
 class RISQTutorialSensitivity : public G4CMPElectrodeSensitivity {
 public:
@@ -16,6 +17,11 @@ public:
 
   void SetHitOutputFile(const G4String& fn);
   void SetPrimaryOutputFile(const G4String& fn);
+
+  // 静态接口：低能声子记录（供 SteppingAction 调用）
+  static void RecordLowEnergyPhonon(G4int runID, G4int eventID,
+                                    G4int trackID, G4double energy);
+  static void EnableLowERecord(bool enable = true);
 
 protected:
   virtual G4bool IsHit(const G4Step*, const G4TouchableHistory*) const;
@@ -27,6 +33,12 @@ private:
 
   std::ofstream primaryOutput;
   G4String primaryFileName;
+
+  // 低能声子静态输出（线程安全）
+  static std::ofstream lowEOutput;
+  static std::mutex lowEMutex;
+  static bool lowEEnabled;
+  static bool lowEFileInitialized;
 };
 
 #endif

@@ -18,6 +18,12 @@
 #include <fstream>
 #include <iostream>
 
+// 静态成员初始化
+std::ofstream RISQTutorialSensitivity::lowEOutput;
+std::mutex RISQTutorialSensitivity::lowEMutex;
+bool RISQTutorialSensitivity::lowEEnabled = true;        // 默认开启记录
+bool RISQTutorialSensitivity::lowEFileInitialized = false;
+
 RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   G4CMPElectrodeSensitivity(name), hitFileName(""), primaryFileName("") {
   SetHitOutputFile(RISQTutorialConfigManager::GetHitOutput());
@@ -27,6 +33,33 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
 RISQTutorialSensitivity::~RISQTutorialSensitivity() {
   if (primaryOutput.is_open()) primaryOutput.close();
   if (hitOutput.is_open()) hitOutput.close();
+  // 静态低能文件在程序结束时由系统关闭（也可在此处显式关闭，但需注意多实例）
+}
+
+// 启用或关闭低能声子记录
+void RISQTutorialSensitivity::EnableLowERecord(bool enable) {
+  std::lock_guard<std::mutex> lock(lowEMutex);
+  lowEEnabled = enable;
+}
+
+// 线程安全地记录低能声子
+void RISQTutorialSensitivity::RecordLowEnergyPhonon(G4int runID, G4int eventID,
+                                                    G4int trackID, G4double energy) {
+  std::lock_guard<std::mutex> lock(lowEMutex);
+  if (!lowEEnabled) return;
+
+  if (!lowEFileInitialized) {
+    lowEOutput.open("phonon_lowenergy.txt", std::ios_base::app);
+    lowEFileInitialized = true;
+    if (lowEOutput.good()) {
+      lowEOutput << "Run ID,Event ID,Track ID,Energy [eV]\n";
+    }
+  }
+  if (lowEOutput.good()) {
+    lowEOutput << runID << ',' << eventID << ',' << trackID << ','
+               << energy / CLHEP::eV << '\n';
+    lowEOutput.flush();   // 每条记录立即写入磁盘
+  }
 }
 
 void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
@@ -36,7 +69,7 @@ void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
 
   G4RunManager* runMan = G4RunManager::GetRunManager();
 
-  // --- primary output ---
+  // --- primary output (with flush) ---
   const G4Event* currentEvent = runMan->GetCurrentEvent();
   if (primaryOutput.good() && currentEvent->GetNumberOfPrimaryVertex() > 0) {
     G4PrimaryVertex* primaryVertex = currentEvent->GetPrimaryVertex(0);
@@ -49,28 +82,30 @@ void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
                   << primaryVertex->GetY0()/CLHEP::mm << ' '
                   << primaryVertex->GetZ0()/CLHEP::mm << ' '
                   << primaryVertex->GetT0()/CLHEP::ns << '\n';
+    primaryOutput.flush();
   }
 
-  // --- hit output (simplified) ---
-  const bool enableCoordFilter = true;
-  const double xLeftMin  = -3.775, xLeftMax  = -3.325;
-  const double xRightMin =  3.325, xRightMax =  3.775;
-  const double yMin = -0.52, yMax = 0.077665;
-
+  // --- hit output (simplified, with flush) ---
   if (hitOutput.good()) {
     for (G4CMPElectrodeHit* hit : *hitVec) {
       double x = hit->GetFinalPosition().x();
       double y = hit->GetFinalPosition().y();
 
-      bool inLeft  = (x >= xLeftMin  && x <= xLeftMax  && y >= yMin && y <= yMax);
-      bool inRight = (x >= xRightMin && x <= xRightMax && y >= yMin && y <= yMax);
-      if (enableCoordFilter && !inLeft && !inRight) continue;
+      // 坐标过滤（可根据需要打开）
+      const bool filterOn = false;   // 改为 true 启用过滤
+      const double xLmin = -3.775, xLmax = -3.325;
+      const double xRmin =  3.325, xRmax =  3.775;
+      const double ymin = -0.52, ymax = 0.077665;
+      bool inLeft  = (x >= xLmin && x <= xLmax && y >= ymin && y <= ymax);
+      bool inRight = (x >= xRmin && x <= xRmax && y >= ymin && y <= ymax);
+      if (filterOn && !inLeft && !inRight) continue;
 
       hitOutput << runMan->GetCurrentRun()->GetRunID() << ','
                 << runMan->GetCurrentEvent()->GetEventID() << ','
                 << hit->GetTrackID() << ','
                 << hit->GetEnergyDeposit()/CLHEP::eV << '\n';
     }
+    hitOutput.flush();
   }
 }
 
@@ -78,7 +113,7 @@ void RISQTutorialSensitivity::SetHitOutputFile(const G4String &fn) {
   if (hitFileName != fn) {
     if (hitOutput.is_open()) hitOutput.close();
     hitFileName = fn;
-    hitOutput.open(hitFileName, std::ios_base::app);
+    hitOutput.open(hitFileName, std::ios_base::trunc);
     if (!hitOutput.good()) {
       G4ExceptionDescription msg;
       msg << "Error opening hit output file " << hitFileName;
@@ -95,7 +130,7 @@ void RISQTutorialSensitivity::SetPrimaryOutputFile(const G4String &fn) {
   if (primaryFileName != fn) {
     if (primaryOutput.is_open()) primaryOutput.close();
     primaryFileName = fn;
-    primaryOutput.open(primaryFileName, std::ios_base::app);
+    primaryOutput.open(primaryFileName, std::ios_base::trunc);
     if (!primaryOutput.good()) {
       G4ExceptionDescription msg;
       msg << "Error opening output file " << primaryFileName;
