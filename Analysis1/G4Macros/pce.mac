@@ -6,7 +6,7 @@
 /gps/number 1
 /gps/particle phononL
 
-/g4cmp/phononBounces 1000
+/g4cmp/phononBounces 100000000
 
 # Volume source: Para matching the Si crystal (10 mm × 3.33333 mm × 0.2 mm)
 /gps/pos/type Volume
@@ -22,3 +22,5 @@
 /gps/ene/type Mono
 /gps/energy 0.005 eV
 /run/beamOn 2000
+
+#source code: github.com/Arelnir/examples/tree/energy_conservation_check commit:

@@ -32,7 +32,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   G4CMPElectrodeSensitivity(name)
 {
   // 初级声子 ROOT 文件
-  primaryFile = new TFile("phonon_primary.root", "RECREATE");
+  primaryFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_primary.root", "RECREATE");
   primaryTree = new TTree("primaryTree", "Primary Phonons");
   primaryTree->Branch("runID", &primRunID, "runID/I");
   primaryTree->Branch("eventID", &primEventID, "eventID/I");
@@ -44,7 +44,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   primaryTree->Branch("t", &primT, "t/D");
 
   // 有效电极击中文件
-  hitsActiveFile = new TFile("phonon_hits_active.root", "RECREATE");
+  hitsActiveFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_hits_active.root", "RECREATE");
   hitsActiveTree = new TTree("hitsTree", "Active Electrode Hits");
   hitsActiveTree->Branch("runID", &hitRunID, "runID/I");
   hitsActiveTree->Branch("eventID", &hitEventID, "eventID/I");
@@ -63,7 +63,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   hitsActiveTree->Branch("endTime", &hitEndTime, "endTime/D");
 
   // 无效电极击中文件
-  hitsPassiveFile = new TFile("phonon_hits_passive.root", "RECREATE");
+  hitsPassiveFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_hits_passive.root", "RECREATE");
   hitsPassiveTree = new TTree("hitsTree", "Passive Electrode Hits");
   hitsPassiveTree->Branch("runID", &hitRunID, "runID/I");
   hitsPassiveTree->Branch("eventID", &hitEventID, "eventID/I");
@@ -95,7 +95,7 @@ void RISQTutorialSensitivity::RecordLowEnergyPhonon(G4int runID, G4int eventID,
                                                     G4int trackID, G4double energy) {
   std::lock_guard<std::mutex> lock(lowEMutex);
   if (!lowEInitialized) {
-    lowEFile = new TFile("phonon_lowenergy.root", "RECREATE");
+    lowEFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_lowenergy.root", "RECREATE");
     lowETree = new TTree("lowETree", "Low-Energy Phonons");
     lowETree->Branch("runID", &lowERunID, "runID/I");
     lowETree->Branch("eventID", &lowEEventID, "eventID/I");

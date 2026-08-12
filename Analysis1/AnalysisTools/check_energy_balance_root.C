@@ -1,6 +1,6 @@
 // check_energy_balance_root.C
 // 用法：root -l -q check_energy_balance_root.C
-// 输出：energy_balance.png
+// 输出：/mnt/sim/g4simbytsc/temp/energy_balance.png
 
 #include <TFile.h>
 #include <TTree.h>
@@ -19,8 +19,11 @@ void check_energy_balance_root() {
     gStyle->SetOptStat(0);
     gStyle->SetPalette(kViridis);
 
+    // ★★★ 唯一需要修改的路径变量 ★★★
+    const char* dataPath = "/mnt/sim/g4simbytsc/temp/";
+
     // ========== 读取初级声子数据 ==========
-    TFile *fprim = new TFile("phonon_primary.root");
+    TFile *fprim = new TFile(Form("%s/phonon_primary.root", dataPath));
     if (!fprim->IsOpen()) { std::cerr << "Error opening phonon_primary.root\n"; return; }
     TTree *tprim = (TTree*)fprim->Get("primaryTree");
     double primEnergy, primX, primY;
@@ -42,7 +45,7 @@ void check_energy_balance_root() {
               << ", total energy: " << totalPrimaryEnergy << " eV" << std::endl;
 
     // ========== 读取有效电极击中 ==========
-    TFile *fact = new TFile("phonon_hits_active.root");
+    TFile *fact = new TFile(Form("%s/phonon_hits_active.root", dataPath));
     if (!fact->IsOpen()) { std::cerr << "Error opening phonon_hits_active.root\n"; return; }
     TTree *tact = (TTree*)fact->Get("hitsTree");
     double activeEDep;
@@ -55,7 +58,7 @@ void check_energy_balance_root() {
     std::cout << "Active electrode energy: " << totalActiveEnergy << " eV" << std::endl;
 
     // ========== 读取无效电极击中 ==========
-    TFile *fpas = new TFile("phonon_hits_passive.root");
+    TFile *fpas = new TFile(Form("%s/phonon_hits_passive.root", dataPath));
     if (!fpas->IsOpen()) { std::cerr << "Error opening phonon_hits_passive.root\n"; return; }
     TTree *tpas = (TTree*)fpas->Get("hitsTree");
     double passiveEDep;
@@ -68,7 +71,7 @@ void check_energy_balance_root() {
     std::cout << "Passive electrode energy: " << totalPassiveEnergy << " eV" << std::endl;
 
     // ========== 读取低能声子数据 ==========
-    TFile *flow = new TFile("phonon_lowenergy.root");
+    TFile *flow = new TFile(Form("%s/phonon_lowenergy.root", dataPath));
     double totalLowEnergy = 0.0;
     if (flow->IsOpen()) {
         TTree *tlow = (TTree*)flow->Get("lowETree");
@@ -91,11 +94,11 @@ void check_energy_balance_root() {
     double deltaE = totalPrimaryEnergy - totalActiveEnergy - totalPassiveEnergy - totalLowEnergy;
     double deltaFrac = (totalPrimaryEnergy > 0) ? 100.0 * deltaE / totalPrimaryEnergy : 0.0;
 
-    // ========== 创建直方图（格子正方形：102 bins × 34 bins）==========
+    // ========== 创建直方图（格子正方形：100 bins × 100 bins）==========
     TH2F *h_prim_xy = new TH2F("h_prim_xy",
                                "Primary Phonon Energy (XY);X [mm];Y [mm];Energy [eV]",
-                               100, -5.0, 5.0,   
-                               100, -1.667, 1.667); 
+                               100, -5.0, 5.0,
+                               100, -1.667, 1.667);
     for (size_t i=0; i<vX.size(); ++i) h_prim_xy->Fill(vX[i], vY[i], vE[i]);
 
     // ========== 扇形图 ==========
@@ -110,7 +113,7 @@ void check_energy_balance_root() {
     pie->SetEntryFillColor(0, kBlue-9);
     pie->SetEntryFillColor(1, kGreen-9);
     pie->SetEntryFillColor(2, kYellow-7);
-    pie->SetTextSize(0.04);
+    pie->SetTextSize(0.035);
 
     // ========== 绘制画布 ==========
     TCanvas *cAll = new TCanvas("cAll", "Energy Balance", 1400, 600);
@@ -128,9 +131,9 @@ void check_energy_balance_root() {
     h_prim_xy->GetYaxis()->SetLabelSize(0.04);
     gPad->SetFixedAspectRatio();
 
-    // ---- 右图：上扇形图，下文字（文字放大、高度增加）----
+    // ---- 右图：上扇形图，下文字 ----
     cAll->cd(2);
-    TPad *padPie = new TPad("padPie", "Pie", 0.0, 0.4, 1.0, 1.0);   // 扇形图占上半部分 60%
+    TPad *padPie = new TPad("padPie", "Pie", 0.0, 0.4, 1.0, 1.0);
     padPie->SetLeftMargin(0.1);
     padPie->SetRightMargin(0.2);
     padPie->Draw();
@@ -139,14 +142,14 @@ void check_energy_balance_root() {
     pie->Draw("3d");
 
     cAll->cd(2);
-    TPad *padText = new TPad("padText", "Text", 0.0, 0.0, 1.0, 0.4);  // 文字占下半部分 40%
+    TPad *padText = new TPad("padText", "Text", 0.0, 0.0, 1.0, 0.4);
     padText->SetFillColor(0);
     padText->Draw();
     padText->cd();
     TPaveText *pt = new TPaveText(0.05, 0.1, 0.95, 0.9, "NDC");
     pt->SetFillColor(0);
     pt->SetBorderSize(0);
-    pt->SetTextSize(0.08);        // 文字大小增大到 0.08
+    pt->SetTextSize(0.08);
     pt->SetTextAlign(12);
     pt->AddText("Energy Balance Summary");
     pt->AddText(Form("Primary: %.4f eV", totalPrimaryEnergy));
@@ -156,7 +159,8 @@ void check_energy_balance_root() {
     pt->AddText(Form("#DeltaE = %.4f eV (%.2f%%)", deltaE, deltaFrac));
     pt->Draw();
 
-    cAll->SaveAs("energy_balance.png");
+    // 图片保存到数据目录
+    cAll->SaveAs(Form("%s/energy_balance.png", dataPath));
 
-    std::cout << "\nDone. Output: energy_balance.png" << std::endl;
+    std::cout << "\nDone. Output: " << dataPath << "energy_balance.png" << std::endl;
 }
