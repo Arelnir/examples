@@ -122,6 +122,8 @@ void check_energy_balance() {
 
     // 左图：初始声子能量 XY
     c->cd(1);
+    gPad->SetLeftMargin(0.15);    // 增加左边距，防止 Y 轴标题和数字被切
+    gPad->SetBottomMargin(0.12);  // 增加下边距，防止 X 轴标题和数字被切
     h_prim_xy->Draw("COLZ");
 
     // 右图：文字信息
