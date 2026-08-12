@@ -106,7 +106,7 @@ void RISQTutorialSensitivity::RecordLowEnergyPhonon(G4int runID, G4int eventID,
   lowERunID = runID;
   lowEEventID = eventID;
   lowETrackID = trackID;
-  lowEEnergy = energy;
+  lowEEnergy = energy / CLHEP::eV;
   lowETree->Fill();
 }
 
