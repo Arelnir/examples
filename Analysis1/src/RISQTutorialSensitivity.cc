@@ -34,6 +34,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   // 初级声子 ROOT 文件
   primaryFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_primary.root", "RECREATE");
   primaryTree = new TTree("primaryTree", "Primary Phonons");
+  primaryTree->SetAutoFlush(-5000000);   // 每积累 5 MB 数据就自动写入磁盘，释放内存
   primaryTree->Branch("runID", &primRunID, "runID/I");
   primaryTree->Branch("eventID", &primEventID, "eventID/I");
   primaryTree->Branch("particleName", primParticleName, "particleName/C");
@@ -46,6 +47,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   // 有效电极击中文件
   hitsActiveFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_hits_active.root", "RECREATE");
   hitsActiveTree = new TTree("hitsTree", "Active Electrode Hits");
+  hitsActiveTree->SetAutoFlush(-5000000);   // 每积累 5 MB 数据就自动写入磁盘，释放内存
   hitsActiveTree->Branch("runID", &hitRunID, "runID/I");
   hitsActiveTree->Branch("eventID", &hitEventID, "eventID/I");
   hitsActiveTree->Branch("trackID", &hitTrackID, "trackID/I");
@@ -65,6 +67,7 @@ RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
   // 无效电极击中文件
   hitsPassiveFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_hits_passive.root", "RECREATE");
   hitsPassiveTree = new TTree("hitsTree", "Passive Electrode Hits");
+  hitsPassiveTree->SetAutoFlush(-5000000);   // 每积累 5 MB 数据就自动写入磁盘，释放内存
   hitsPassiveTree->Branch("runID", &hitRunID, "runID/I");
   hitsPassiveTree->Branch("eventID", &hitEventID, "eventID/I");
   hitsPassiveTree->Branch("trackID", &hitTrackID, "trackID/I");
@@ -97,6 +100,7 @@ void RISQTutorialSensitivity::RecordLowEnergyPhonon(G4int runID, G4int eventID,
   if (!lowEInitialized) {
     lowEFile = new TFile("/mnt/sim/g4simbytsc/temp/phonon_lowenergy.root", "RECREATE");
     lowETree = new TTree("lowETree", "Low-Energy Phonons");
+    lowETree->SetAutoFlush(-5000000);   // 每积累 5 MB 数据就自动写入磁盘，释放内存
     lowETree->Branch("runID", &lowERunID, "runID/I");
     lowETree->Branch("eventID", &lowEEventID, "eventID/I");
     lowETree->Branch("trackID", &lowETrackID, "trackID/I");
