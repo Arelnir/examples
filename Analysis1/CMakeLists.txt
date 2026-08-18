@@ -15,11 +15,18 @@ include(${G4CMP_USE_FILE})
 include($ENV{G4CMPINSTALL}/FindGeant4.cmake)
 
 #----------------------------------------------------------------------------
+# Find ROOT package (needed for TFile, TTree in Sensitivity)
+#----------------------------------------------------------------------------
+find_package(ROOT REQUIRED)
+include(${ROOT_USE_FILE})
+
+#----------------------------------------------------------------------------
 # Setup include directories and compile definitions
 # NOTE: Need to include G4CMP directories before G4.
 #
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${G4CMP_INCLUDE_DIRS})
+include_directories(${ROOT_INCLUDE_DIRS})
 include(${G4CMP_USE_FILE})
 include(${Geant4_USE_FILE})
 
@@ -60,7 +67,7 @@ set_target_properties(RISQTutorialLib PROPERTIES OUTPUT_NAME g4cmpRISQTutorial)
 message("G4CMP Libraries: ")
 message(${G4CMP_LIBRARIES})
 
-target_link_libraries(RISQTutorialLib ${G4CMP_LIBRARIES} ${Geant4_LIBRARIES})
+target_link_libraries(RISQTutorialLib ${G4CMP_LIBRARIES} ${Geant4_LIBRARIES} ${ROOT_LIBRARIES})
 
 add_executable(RISQTutorial RISQTutorial.cc)
 target_link_libraries(RISQTutorial RISQTutorialLib)

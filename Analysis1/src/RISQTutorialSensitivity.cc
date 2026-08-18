@@ -1,8 +1,3 @@
-/***********************************************************************\
- * This software is licensed under the terms of the GNU General Public *
- * License version 3 or later. See G4CMP/LICENSE for the full license. *
-\***********************************************************************/
-
 #include "RISQTutorialSensitivity.hh"
 #include "G4CMPElectrodeHit.hh"
 #include "G4Event.hh"
@@ -14,131 +9,106 @@
 #include "G4RunManager.hh"
 #include "G4SDManager.hh"
 #include "G4SystemOfUnits.hh"
-#include "RISQTutorialConfigManager.hh"
-#include <fstream>
-#include <iostream>
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+#include "G4PrimaryVertex.hh"
+#include "G4PrimaryParticle.hh"
+#include "TFile.h"
+#include "TTree.h"
 
 RISQTutorialSensitivity::RISQTutorialSensitivity(G4String name) :
-  G4CMPElectrodeSensitivity(name), hitFileName(""), primaryFileName("") {
-  SetHitOutputFile(RISQTutorialConfigManager::GetHitOutput());
-  SetPrimaryOutputFile(RISQTutorialConfigManager::GetPrimaryOutput());
+  G4CMPElectrodeSensitivity(name)
+{
+  // 初级声子 ROOT 文件
+  primaryFile = new TFile("phonon_primary.root", "RECREATE");
+  primaryTree = new TTree("primaryTree", "Primary Phonons");
+  primaryTree->Branch("runID", &primRunID, "runID/I");
+  primaryTree->Branch("eventID", &primEventID, "eventID/I");
+  primaryTree->Branch("particleName", primParticleName, "particleName/C");
+  primaryTree->Branch("energy", &primEnergy, "energy/D");
+  primaryTree->Branch("x", &primX, "x/D");
+  primaryTree->Branch("y", &primY, "y/D");
+  primaryTree->Branch("z", &primZ, "z/D");
+  primaryTree->Branch("t", &primT, "t/D");
+  primaryTree->SetAutoFlush(-2000000);   // 内存优化
+
+  // 有效电极击中 ROOT 文件
+  hitsFile = new TFile("phonon_hits.root", "RECREATE");
+  hitsTree = new TTree("hitsTree", "Active Electrode Hits");
+  hitsTree->Branch("runID", &hitRunID, "runID/I");
+  hitsTree->Branch("eventID", &hitEventID, "eventID/I");
+  hitsTree->Branch("trackID", &hitTrackID, "trackID/I");
+  hitsTree->Branch("particleName", hitParticleName, "particleName/C");
+  hitsTree->Branch("startEnergy", &hitStartEnergy, "startEnergy/D");
+  hitsTree->Branch("startX", &hitStartX, "startX/D");
+  hitsTree->Branch("startY", &hitStartY, "startY/D");
+  hitsTree->Branch("startZ", &hitStartZ, "startZ/D");
+  hitsTree->Branch("startTime", &hitStartTime, "startTime/D");
+  hitsTree->Branch("eDep", &hitEDep, "eDep/D");
+  hitsTree->Branch("weight", &hitWeight, "weight/D");
+  hitsTree->Branch("endX", &hitEndX, "endX/D");
+  hitsTree->Branch("endY", &hitEndY, "endY/D");
+  hitsTree->Branch("endZ", &hitEndZ, "endZ/D");
+  hitsTree->Branch("endTime", &hitEndTime, "endTime/D");
+  hitsTree->SetAutoFlush(-2000000);      // 内存优化
 }
 
 RISQTutorialSensitivity::~RISQTutorialSensitivity() {
-  if (primaryOutput.is_open()) primaryOutput.close();
-  if (!primaryOutput.good()) {
-    G4cerr << "Error closing primary output file, " << primaryFileName << ".\n"
-           << "Expect bad things like loss of data.";
-  }
-
-  if (hitOutput.is_open()) hitOutput.close();
-  if (!hitOutput.good()) {
-    G4cerr << "Error closing hit output file, " << hitFileName << ".\n"
-           << "Expect bad things like loss of data.";
-  }
+  if (primaryFile) { primaryFile->Write(); primaryFile->Close(); delete primaryFile; }
+  if (hitsFile)    { hitsFile->Write();    hitsFile->Close();    delete hitsFile; }
 }
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-
 void RISQTutorialSensitivity::EndOfEvent(G4HCofThisEvent* HCE) {
+  G4RunManager* runMan = G4RunManager::GetRunManager();
+  const G4Event* currentEvent = runMan->GetCurrentEvent();
+
+  // ========== 写入初级声子信息 ==========
+  if (currentEvent->GetNumberOfPrimaryVertex() > 0) {
+    G4PrimaryVertex* pv = currentEvent->GetPrimaryVertex(0);
+    G4PrimaryParticle* pp = pv->GetPrimary(0);
+    primRunID = runMan->GetCurrentRun()->GetRunID();
+    primEventID = currentEvent->GetEventID();
+    strncpy(primParticleName, pp->GetParticleDefinition()->GetParticleName().c_str(), 19);
+    primParticleName[19] = '\0';
+    primEnergy = pp->GetTotalEnergy() / CLHEP::eV;
+    primX = pv->GetX0() / CLHEP::mm;
+    primY = pv->GetY0() / CLHEP::mm;
+    primZ = pv->GetZ0() / CLHEP::mm;
+    primT = pv->GetT0() / CLHEP::ns;
+    primaryTree->Fill();
+  }
+
+  // ========== 写入有效电极击中（坐标过滤） ==========
   G4int HCID = G4SDManager::GetSDMpointer()->GetCollectionID(hitsCollection);
   auto* hitCol = static_cast<G4CMPElectrodeHitsCollection*>(HCE->GetHC(HCID));
   std::vector<G4CMPElectrodeHit*>* hitVec = hitCol->GetVector();
 
-  G4RunManager* runMan = G4RunManager::GetRunManager();
+  for (G4CMPElectrodeHit* hit : *hitVec) {
+    double x = hit->GetFinalPosition().x();   // mm
+    double y = hit->GetFinalPosition().y();
 
-  // ---------- 写入初始声子信息 ----------
-  const G4Event* currentEvent = runMan->GetCurrentEvent();
-  if (primaryOutput.good() && currentEvent->GetNumberOfPrimaryVertex() > 0) {
-    G4PrimaryVertex* primaryVertex = currentEvent->GetPrimaryVertex(0);
-    G4PrimaryParticle* primary = primaryVertex->GetPrimary(0);
-    primaryOutput << runMan->GetCurrentRun()->GetRunID() << ' '
-                  << runMan->GetCurrentEvent()->GetEventID() << ' '
-                  << primary->GetParticleDefinition()->GetParticleName() << ' '
-                  << primary->GetTotalEnergy()/CLHEP::eV << ' '
-                  << primaryVertex->GetX0()/CLHEP::mm << ' '
-                  << primaryVertex->GetY0()/CLHEP::mm << ' '
-                  << primaryVertex->GetZ0()/CLHEP::mm << ' '
-                  << primaryVertex->GetT0()/CLHEP::ns << '\n';
-  }
+    bool isLeft  = (x >= xLeftMin  && x <= xLeftMax  && y >= yMin && y <= yMax);
+    bool isRight = (x >= xRightMin && x <= xRightMax && y >= yMin && y <= yMax);
+    if (!isLeft && !isRight) continue;   // 只保留有效电极
 
-  // ---------- 写入电极击中数据（带坐标过滤） ----------
-  const bool enableCoordFilter = true;   // 设置为 false 可关闭过滤
-  const double xLeftMin  = -3.775, xLeftMax  = -3.325;
-  const double xRightMin =  3.325, xRightMax =  3.775;
-  const double yMin = -0.52, yMax = 0.077665;
+    hitRunID   = runMan->GetCurrentRun()->GetRunID();
+    hitEventID = currentEvent->GetEventID();
+    hitTrackID = hit->GetTrackID();
+    strncpy(hitParticleName, hit->GetParticleName().c_str(), 19);
+    hitParticleName[19] = '\0';
+    hitStartEnergy = hit->GetStartEnergy() / CLHEP::eV;
+    hitStartX = hit->GetStartPosition().getX() / CLHEP::mm;
+    hitStartY = hit->GetStartPosition().getY() / CLHEP::mm;
+    hitStartZ = hit->GetStartPosition().getZ() / CLHEP::mm;
+    hitStartTime = hit->GetStartTime() / CLHEP::ns;
+    hitEDep = hit->GetEnergyDeposit() / CLHEP::eV;
+    hitWeight = hit->GetWeight();
+    hitEndX = x;
+    hitEndY = y;
+    hitEndZ = hit->GetFinalPosition().getZ();
+    hitEndTime = hit->GetFinalTime() / CLHEP::ns;
 
-  if (hitOutput.good()) {
-    for (G4CMPElectrodeHit* hit : *hitVec) {
-      double x = hit->GetFinalPosition().x();   // 单位 mm
-      double y = hit->GetFinalPosition().y();
-
-      bool inLeft  = (x >= xLeftMin  && x <= xLeftMax  && y >= yMin && y <= yMax);
-      bool inRight = (x >= xRightMin && x <= xRightMax && y >= yMin && y <= yMax);
-      if (enableCoordFilter && !inLeft && !inRight) continue;
-
-      hitOutput << runMan->GetCurrentRun()->GetRunID() << ' '
-                << runMan->GetCurrentEvent()->GetEventID() << ' '
-                << hit->GetTrackID() << ' '
-                << hit->GetParticleName() << ' '
-                << hit->GetStartEnergy()/CLHEP::eV << ' '
-                << hit->GetStartPosition().getX()/CLHEP::mm << ' '
-                << hit->GetStartPosition().getY()/CLHEP::mm << ' '
-                << hit->GetStartPosition().getZ()/CLHEP::mm << ' '
-                << hit->GetStartTime()/CLHEP::ns << ' '
-                << hit->GetEnergyDeposit()/CLHEP::eV << ' '
-                << hit->GetWeight() << ' '
-                << hit->GetFinalPosition().getX()/CLHEP::mm << ' '
-                << hit->GetFinalPosition().getY()/CLHEP::mm << ' '
-                << hit->GetFinalPosition().getZ()/CLHEP::mm << ' '
-                << hit->GetFinalTime()/CLHEP::ns << '\n';
-    }
+    hitsTree->Fill();
   }
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-
-void RISQTutorialSensitivity::SetHitOutputFile(const G4String &fn) {
-  if (hitFileName != fn) {
-    if (hitOutput.is_open()) hitOutput.close();
-    hitFileName = fn;
-    hitOutput.open(hitFileName, std::ios_base::app);
-    if (!hitOutput.good()) {
-      G4ExceptionDescription msg;
-      msg << "Error opening hit output file " << hitFileName;
-      G4Exception("RISQTutorialSensitivity::SetHitOutputFile", "PhonSense003",
-                  FatalException, msg);
-      hitOutput.close();
-    } else {
-      hitOutput << "Run ID,Event ID,Track ID,Particle Name,Start Energy [eV],"
-                << "Start X [m],Start Y [m],Start Z [m],Start Time [ns],"
-                << "Energy Deposited [eV],Track Weight,End X [m],End Y [m],End Z [m],"
-                << "Final Time [ns]\n";
-    }
-  }
-}
-
-void RISQTutorialSensitivity::SetPrimaryOutputFile(const G4String &fn) {
-  if (primaryFileName != fn) {
-    if (primaryOutput.is_open()) primaryOutput.close();
-    primaryFileName = fn;
-    primaryOutput.open(primaryFileName, std::ios_base::app);
-    if (!primaryOutput.good()) {
-      G4ExceptionDescription msg;
-      msg << "Error opening output file " << primaryFileName;
-      G4Exception("RISQTutorialSensitivity::SetPrimaryOutputFile", "PhonSense003",
-                  FatalException, msg);
-      primaryOutput.close();
-    } else {
-      primaryOutput << "Run ID,Event ID,Particle Name,Start Energy [eV],"
-                    << "Start X [mm],Start Y [mm],Start Z [mm],Start Time [ns]\n";
-    }
-  }
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 
 G4bool RISQTutorialSensitivity::IsHit(const G4Step* step,
                                       const G4TouchableHistory*) const {
