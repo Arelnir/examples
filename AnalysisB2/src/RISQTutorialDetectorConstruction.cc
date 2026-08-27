@@ -150,7 +150,7 @@ G4double portZcenter = siHalfZ + portHalfZ;
 
 // 矩形尺寸
 G4double rectHalfX = 200./2. * um;   // 宽 200
-G4double rectHalfY = 1200./2. * um;  // 长 1200
+G4double rectHalfY = 1080./2. * um;  // 长 1200
 G4VSolid* rectSolid = new G4Box("CPW_PortRect", rectHalfX, rectHalfY, portHalfZ);
 G4LogicalVolume* rectLeftLV = new G4LogicalVolume(rectSolid, fAluminum, "CPW_PortRectLeftLV");
 G4LogicalVolume* rectRightLV = new G4LogicalVolume(rectSolid, fAluminum, "CPW_PortRectRightLV");
