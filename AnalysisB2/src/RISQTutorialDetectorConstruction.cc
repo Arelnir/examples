@@ -144,22 +144,35 @@ void RISQTutorialDetectorConstruction::SetupGeometry() {
   G4VisAttributes* copperVisAtt = new G4VisAttributes(G4Colour(1.0, 0.6, 0.2));
   cpwLV->SetVisAttributes(copperVisAtt);
 
-  // ================= CPW 端口（矩形 + 两个细梯形） =================
+// ================= CPW 端口（矩形 + 两个细梯形） =================
 G4double portHalfZ = elecThick / 2.;
 G4double portZcenter = siHalfZ + portHalfZ;
 
 // 矩形尺寸
-G4double rectHalfX = 200./2. * um;
-G4double rectHalfY = 1200./2. * um;
+G4double rectHalfX = 200./2. * um;   // 宽 200
+G4double rectHalfY = 1200./2. * um;  // 长 1200
 G4VSolid* rectSolid = new G4Box("CPW_PortRect", rectHalfX, rectHalfY, portHalfZ);
 G4LogicalVolume* rectLeftLV = new G4LogicalVolume(rectSolid, fAluminum, "CPW_PortRectLeftLV");
 G4LogicalVolume* rectRightLV = new G4LogicalVolume(rectSolid, fAluminum, "CPW_PortRectRightLV");
 
-// 矩形中心 X = ±4650 um
+// 矩形中心 X = ±4650 um，Y=465 um
 G4double rectCenterX = cpwHalfX + 360.*um + rectHalfX;   // 4650 um
 G4double rectYcenter = cpwCenterY;
 
-// ---------- 右上梯形（四个顶点，单位 mm） ----------
+// 放置左矩形
+G4VPhysicalVolume* pvPort;
+pvPort = new G4PVPlacement(0, G4ThreeVector(-rectCenterX, rectYcenter, portZcenter),
+                           rectLeftLV, "CPW_PortRectLeft", worldLV, false, 602);
+new G4CMPLogicalBorderSurface("Si_RectLeft", siPhys, pvPort, fElectrodeSurfProp);
+new G4CMPLogicalBorderSurface("RectLeft_Si", pvPort, siPhys, fElectrodeSurfProp);
+
+// 放置右矩形
+pvPort = new G4PVPlacement(0, G4ThreeVector(rectCenterX, rectYcenter, portZcenter),
+                           rectRightLV, "CPW_PortRectRight", worldLV, false, 603);
+new G4CMPLogicalBorderSurface("Si_RectRight", siPhys, pvPort, fElectrodeSurfProp);
+new G4CMPLogicalBorderSurface("RectRight_Si", pvPort, siPhys, fElectrodeSurfProp);
+
+// ---------- 右上梯形（四个顶点，单位 um） ----------
 std::vector<G4TwoVector> upperTrap = {
     G4TwoVector(4190.*um, 465.*um),
     G4TwoVector(4190.*um, 483.*um),
@@ -175,18 +188,18 @@ std::vector<G4TwoVector> lowerTrap = {
     G4TwoVector(4550.*um, 24.9625*um)
 };
 
-// 定义 Z 段（上下对称）
+// 定义 Z 段
 G4ExtrudedSolid::ZSection zsecArr[2] = {
     G4ExtrudedSolid::ZSection(-portHalfZ, G4TwoVector(0,0), 1.0),
     G4ExtrudedSolid::ZSection( portHalfZ, G4TwoVector(0,0), 1.0)
 };
 std::vector<G4ExtrudedSolid::ZSection> zsec(zsecArr, zsecArr+2);
 
-// 创建四个梯形实体：左右各两个
+// 右侧两个梯形实体
 G4VSolid* trapRightUpperSolid = new G4ExtrudedSolid("TrapRightUpper", upperTrap, zsec);
 G4VSolid* trapRightLowerSolid = new G4ExtrudedSolid("TrapRightLower", lowerTrap, zsec);
 
-// 左梯形通过对称生成：X 取负，Y 不变
+// 左侧梯形：X 取负，Y 不变
 std::vector<G4TwoVector> upperTrapLeft, lowerTrapLeft;
 for (auto& p : upperTrap) upperTrapLeft.emplace_back(-p.x(), p.y());
 for (auto& p : lowerTrap) lowerTrapLeft.emplace_back(-p.x(), p.y());
@@ -194,40 +207,41 @@ for (auto& p : lowerTrap) lowerTrapLeft.emplace_back(-p.x(), p.y());
 G4VSolid* trapLeftUpperSolid = new G4ExtrudedSolid("TrapLeftUpper", upperTrapLeft, zsec);
 G4VSolid* trapLeftLowerSolid = new G4ExtrudedSolid("TrapLeftLower", lowerTrapLeft, zsec);
 
-// 创建逻辑体
+// 逻辑体
 G4LogicalVolume* trapRightUpperLV = new G4LogicalVolume(trapRightUpperSolid, fAluminum, "TrapRightUpperLV");
 G4LogicalVolume* trapRightLowerLV = new G4LogicalVolume(trapRightLowerSolid, fAluminum, "TrapRightLowerLV");
 G4LogicalVolume* trapLeftUpperLV  = new G4LogicalVolume(trapLeftUpperSolid, fAluminum, "TrapLeftUpperLV");
 G4LogicalVolume* trapLeftLowerLV  = new G4LogicalVolume(trapLeftLowerSolid, fAluminum, "TrapLeftLowerLV");
 
-// 放置右梯形（位置由截面顶点决定，中心在 Z 处，X,Y 已在顶点中）
-G4VPhysicalVolume* pvPort;
+// 放置右侧梯形
 pvPort = new G4PVPlacement(0, G4ThreeVector(0,0,portZcenter), trapRightUpperLV,
-                           "CPW_PortTrapRightUpper", worldLV, false, 603);
+                           "CPW_PortTrapRightUpper", worldLV, false, 604);
 new G4CMPLogicalBorderSurface("Si_TrapRightUpper", siPhys, pvPort, fElectrodeSurfProp);
 new G4CMPLogicalBorderSurface("TrapRightUpper_Si", pvPort, siPhys, fElectrodeSurfProp);
 
 pvPort = new G4PVPlacement(0, G4ThreeVector(0,0,portZcenter), trapRightLowerLV,
-                           "CPW_PortTrapRightLower", worldLV, false, 604);
+                           "CPW_PortTrapRightLower", worldLV, false, 605);
 new G4CMPLogicalBorderSurface("Si_TrapRightLower", siPhys, pvPort, fElectrodeSurfProp);
 new G4CMPLogicalBorderSurface("TrapRightLower_Si", pvPort, siPhys, fElectrodeSurfProp);
 
-// 放置左梯形
+// 放置左侧梯形
 pvPort = new G4PVPlacement(0, G4ThreeVector(0,0,portZcenter), trapLeftUpperLV,
-                           "CPW_PortTrapLeftUpper", worldLV, false, 605);
+                           "CPW_PortTrapLeftUpper", worldLV, false, 606);
 new G4CMPLogicalBorderSurface("Si_TrapLeftUpper", siPhys, pvPort, fElectrodeSurfProp);
 new G4CMPLogicalBorderSurface("TrapLeftUpper_Si", pvPort, siPhys, fElectrodeSurfProp);
 
 pvPort = new G4PVPlacement(0, G4ThreeVector(0,0,portZcenter), trapLeftLowerLV,
-                           "CPW_PortTrapLeftLower", worldLV, false, 606);
+                           "CPW_PortTrapLeftLower", worldLV, false, 607);
 new G4CMPLogicalBorderSurface("Si_TrapLeftLower", siPhys, pvPort, fElectrodeSurfProp);
 new G4CMPLogicalBorderSurface("TrapLeftLower_Si", pvPort, siPhys, fElectrodeSurfProp);
 
-// 设置颜色
+// 颜色设置
 trapRightUpperLV->SetVisAttributes(copperVisAtt);
 trapRightLowerLV->SetVisAttributes(copperVisAtt);
 trapLeftUpperLV->SetVisAttributes(copperVisAtt);
 trapLeftLowerLV->SetVisAttributes(copperVisAtt);
+rectLeftLV->SetVisAttributes(copperVisAtt);
+rectRightLV->SetVisAttributes(copperVisAtt);
 
   // ================= IDC =================
   G4double idcMetalHalfX = 60.16/2. * um;
