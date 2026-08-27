@@ -1,6 +1,6 @@
 // check_energy_balance_root.C
 // 用法：root -l -q check_energy_balance_root.C
-// 输出：/mnt/sim/g4simbytsc/temp/energy_balance.png
+// 输出：energy_balance.png, hits_xy_xz.png
 
 #include <TFile.h>
 #include <TTree.h>
@@ -115,7 +115,7 @@ void check_energy_balance_root() {
     pie->SetEntryFillColor(2, kYellow-7);
     pie->SetTextSize(0.035);
 
-    // ========== 绘制画布 ==========
+    // ========== 绘制能量平衡大图 ==========
     TCanvas *cAll = new TCanvas("cAll", "Energy Balance", 1400, 600);
     cAll->Divide(2,1);
 
@@ -159,8 +159,54 @@ void check_energy_balance_root() {
     pt->AddText(Form("#DeltaE = %.4f eV (%.2f%%)", deltaE, deltaFrac));
     pt->Draw();
 
-    // 图片保存到数据目录
     cAll->SaveAs(Form("%s/energy_balance.png", dataPath));
 
-    std::cout << "\nDone. Output: " << dataPath << "energy_balance.png" << std::endl;
+    // ========== 新增：所有 hits 声子的 XY 和 XZ 能量分布 ==========
+    // 合并有效与无效击中数据
+    TH2F *h_xy_all = new TH2F("h_xy_all",
+                             "All Hits Energy (XY);X [mm];Y [mm];Energy [eV]",
+                             200, -5.0, 5.0, 100, -1.667, 1.667);
+    TH2F *h_xz_all = new TH2F("h_xz_all",
+                             "All Hits Energy (XZ);X [mm];Z [mm];Energy [eV]",
+                             200, -5.0, 5.0, 100, -0.5, 0.5);
+
+    auto fill_hits_from_file = [&](TFile *file) {
+        if (!file || !file->IsOpen()) return;
+        TTree *tree = (TTree*)file->Get("hitsTree");
+        if (!tree) return;
+        double endX, endY, endZ, eDep;
+        tree->SetBranchAddress("endX", &endX);
+        tree->SetBranchAddress("endY", &endY);
+        tree->SetBranchAddress("endZ", &endZ);
+        tree->SetBranchAddress("eDep", &eDep);
+        Long64_t n = tree->GetEntries();
+        for (Long64_t i=0; i<n; ++i) {
+            tree->GetEntry(i);
+            h_xy_all->Fill(endX, endY, eDep);
+            h_xz_all->Fill(endX, endZ, eDep);
+        }
+    };
+
+    // 填充有效和无效
+    fill_hits_from_file(fact);   // 有效
+    fill_hits_from_file(fpas);   // 无效
+
+    TCanvas *cHits = new TCanvas("cHits", "Hits XY/XZ", 1400, 600);
+    cHits->Divide(2,1);
+
+    cHits->cd(1);
+    gPad->SetLeftMargin(0.15);
+    gPad->SetRightMargin(0.15);
+    gPad->SetBottomMargin(0.15);
+    h_xy_all->Draw("COLZ");
+
+    cHits->cd(2);
+    gPad->SetLeftMargin(0.15);
+    gPad->SetRightMargin(0.15);
+    gPad->SetBottomMargin(0.15);
+    h_xz_all->Draw("COLZ");
+
+    cHits->SaveAs(Form("%s/hits_xy_xz.png", dataPath));
+
+    std::cout << "\nDone. Output: energy_balance.png, hits_xy_xz.png" << std::endl;
 }

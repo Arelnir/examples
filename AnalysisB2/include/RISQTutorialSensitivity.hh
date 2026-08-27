@@ -57,10 +57,10 @@ private:
   static int lowERunID, lowEEventID, lowETrackID;
   static double lowEEnergy;
 
-  // 坐标过滤阈值（单位：mm）
-  static constexpr double xLeftMin  = -3.775, xLeftMax  = -3.325;
-  static constexpr double xRightMin =  3.325, xRightMax =  3.775;
-  static constexpr double yMin = -0.52, yMax = 0.077665;
+  // 坐标过滤阈值（单位：mm）—— 更新为新几何
+  static constexpr double xLeftMin  = -3.0385, xLeftMax  = -2.9615;
+  static constexpr double xRightMin =  2.9615, xRightMax =  3.0385;
+  static constexpr double yMin = -1.127, yMax = 0.073;
 };
 
 #endif
